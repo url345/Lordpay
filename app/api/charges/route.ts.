@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createHash, randomUUID } from 'crypto';
+import { db } from '@/lib/supabase';
+import { getProvider } from '@/lib/pix/provider';
+
+const authorized = (req: NextRequest) =>
+  createHash('sha256').update(req.headers.get('x-api-key') ?? '').digest('hex')
+  === process.env.LORDPAY_API_KEY_SHA256;
+
+const url = (id: string) => `${process.env.NEXT_PUBLIC_APP_URL}/pay/${id}`;
+
+export async function POST(req: NextRequest) {
+  if (!authorized(req))
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const { amount_cents, description, external_ref } = await req.json();
+  if (!Number.isInteger(amount_cents) || amount_cents <= 0)
+    return NextResponse.json({ error: 'amount_cents inválido' }, { status: 400 });
+
+  const supa = db();
+
+  if (external_ref) {
+    const { data } = await supa.from('charges').select('public_id')
+      .eq('external_ref', external_ref).maybeSingle();
+    if (data)
+      return NextResponse.json({ public_id: data.public_id, checkout_url: url(data.public_id) });
+  }
+
+  try {
+    const provider = getProvider();
+    const pc = await provider.createCharge({
+      amountCents: amount_cents,
+      description,
+      ref: external_ref ?? randomUUID(),
+    });
+    const { data, error } = await supa.from('charges').insert({
+      amount_cents,
+      description,
+      external_ref: external_ref ?? null,
+      provider: provider.name,
+      provider_charge_id: pc.providerChargeId,
+      pix_copy_paste: pc.copyPaste,
+      pix_qr_base64: pc.qrBase64,
+    }).select('public_id').single();
+    if (error) throw error;
+    return NextResponse.json(
+      { public_id: data.public_id, checkout_url: url(data.public_id) },
+      { status: 201 }
+    );
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: 'falha ao criar cobrança' }, { status: 502 });
+  }
+}

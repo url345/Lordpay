@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/supabase';
 import { requireAdmin } from '@/lib/supabase-server';
@@ -20,6 +21,25 @@ const periodos: Record<string, string> = {
 
 const brl = (cents: number) =>
   (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const card: CSSProperties = {
+  background: '#111',
+  border: '1px solid #27272a',
+  borderRadius: 12,
+  padding: 16,
+};
+
+function chip(ativo: boolean): CSSProperties {
+  return {
+    padding: '8px 12px',
+    borderRadius: 20,
+    fontSize: 14,
+    textDecoration: 'none',
+    border: '1px solid ' + (ativo ? '#22c55e' : '#27272a'),
+    color: ativo ? '#000' : '#a1a1aa',
+    background: ativo ? '#22c55e' : '#111',
+  };
+}
 
 export default async function Admin({
   searchParams,
@@ -46,33 +66,13 @@ export default async function Admin({
 
   const { data } = await q;
   const todas = data ?? [];
-
   const pagas = todas.filter((c) => c.status === 'paid');
   const pendentes = todas.filter((c) => c.status === 'pending');
   const totalPago = pagas.reduce((s, c) => s + c.amount_cents, 0);
-
   const lista =
     status === 'todos' ? todas : todas.filter((c) => c.status === status);
 
   const href = (s: string, p: string) => `/admin?status=${s}&periodo=${p}`;
-
-  const chip = (ativo: boolean) =>
-    ({
-      padding: '8px 12px',
-      borderRadius: 20,
-      fontSize: 14,
-      textDecoration: 'none',
-      border: '1px solid ' + (ativo ? '#22c55e' : '#27272a'),
-      color: ativo ? '#000' : '#a1a1aa',
-      background: ativo ? '#22c55e' : '#111',
-    }) as const;
-
-  const card = {
-    background: '#111',
-    border: '1px solid #27272a',
-    borderRadius: 12,
-    padding: 16,
-  } as const;
 
   return (
     <main
@@ -126,9 +126,7 @@ export default async function Admin({
       </div>
 
       <div style={{ ...card, padding: 0, overflowX: 'auto' }}>
-        <table
-          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}
-        >
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr style={{ color: '#a1a1aa', textAlign: 'left' }}>
               <th style={{ padding: 12 }}>Data</th>
@@ -147,10 +145,7 @@ export default async function Admin({
                 </td>
                 <td style={{ padding: 12 }}>{brl(c.amount_cents)}</td>
                 <td style={{ padding: 12 }}>
-                  <a
-                    href={`/pay/${c.public_id}`}
-                    style={{ color: '#22c55e' }}
-                  >
+                  <a href={`/pay/${c.public_id}`} style={{ color: '#22c55e' }}>
                     {c.public_id}
                   </a>
                 </td>
@@ -167,3 +162,6 @@ export default async function Admin({
           </tbody>
         </table>
       </div>
+    </main>
+  );
+}

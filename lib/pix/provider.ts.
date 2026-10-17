@@ -1,0 +1,29 @@
+export type ChargeStatus = 'pending' | 'paid' | 'expired' | 'cancelled';
+
+export interface ProviderCharge {
+  providerChargeId: string;
+  status: ChargeStatus;
+  copyPaste: string;
+  qrBase64?: string;
+}
+
+export interface PixProvider {
+  name: string;
+  createCharge(i: {
+    amountCents: number;
+    description?: string;
+    ref: string;
+  }): Promise<ProviderCharge>;
+  getCharge(providerChargeId: string): Promise<ProviderCharge>;
+  verifyWebhook(
+    rawBody: string,
+    headers: Headers
+  ): { eventId: string; providerChargeId: string } | null;
+}
+
+export function getProvider(): PixProvider {
+  if (!process.env.PIX_PROVIDER || !process.env.PIX_API_KEY)
+    throw new Error('Provedor Pix não configurado.');
+  // TODO: retornar o adaptador do provedor escolhido
+  throw new Error('Adaptador ainda não implementado.');
+}
